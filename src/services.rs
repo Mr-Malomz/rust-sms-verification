@@ -1,9 +1,9 @@
-use std::env;
+use std::{collections::HashMap, env};
 
 use dotenv::dotenv;
-use reqwest::Client;
+use reqwest::{header, Client};
 
-use crate::models::OTPResponse;
+use crate::models::{OTPResponse, OTPVerifyResponse};
 
 pub struct TwilioService {}
 
@@ -26,16 +26,24 @@ impl TwilioService {
             serv_id = service_id
         );
 
-        let body = format!("To={phone}&Channel=sms", phone = phone_number);
+        let mut headers = header::HeaderMap::new();
+        headers.insert(
+            "Content-Type",
+            "application/x-www-form-urlencoded".parse().unwrap(),
+        );
+
+        let mut form_body: HashMap<&str, String> = HashMap::new();
+        form_body.insert("To", phone_number.to_string());
+        form_body.insert("Channel", "sms".to_string());
 
         let client = Client::new();
         let res = client
             .post(url)
             .basic_auth(account_sid, Some(auth_token))
-            .body(body)
+            .headers(headers)
+            .form(&form_body)
             .send()
             .await;
-        println!("{:?}", res.as_ref().ok());
 
         match res {
             Ok(response) => {
@@ -45,10 +53,7 @@ impl TwilioService {
                     Err(_) => Err("Error sending OTP"),
                 }
             }
-            Err(e) => {
-                println!("{}", e);
-                Err("Error sending OTP")
-            }
+            Err(e) => Err("Error sending OTP"),
         }
     }
 
@@ -62,18 +67,39 @@ impl TwilioService {
             serv_id = service_id,
         );
 
-        let body = format!("To={phone}&Code={otp}", phone = phone_number, otp = code);
+        let mut headers = header::HeaderMap::new();
+        headers.insert(
+            "Content-Type",
+            "application/x-www-form-urlencoded".parse().unwrap(),
+        );
+
+        let mut form_body: HashMap<&str, &String> = HashMap::new();
+        form_body.insert("To", phone_number);
+        form_body.insert("Code", code);
 
         let client = Client::new();
         let res = client
             .post(url)
             .basic_auth(account_sid, Some(auth_token))
-            .body(body)
+            .headers(headers)
+            .form(&form_body)
             .send()
             .await;
 
         match res {
-            Ok(_) => Ok(()),
+            Ok(response) => {
+                let data = response.json::<OTPVerifyResponse>().await;
+                match data {
+                    Ok(result) => {
+                        if result.status == "approved" {
+                            Ok(())
+                        } else {
+                            Err("Error verifying OTP")
+                        }
+                    }
+                    Err(_) => Err("Error verifying OTP"),
+                }
+            }
             Err(_) => Err("Error verifying OTP"),
         }
     }

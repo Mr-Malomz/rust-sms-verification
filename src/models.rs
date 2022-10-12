@@ -18,6 +18,11 @@ pub struct OTPResponse {
     pub sid: String,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct OTPVerifyResponse {
+    pub status: String,
+}
+
 #[derive(Serialize, Debug, Clone)]
 pub struct APIResponse {
     pub status: u16,
