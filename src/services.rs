@@ -53,7 +53,7 @@ impl TwilioService {
                     Err(_) => Err("Error sending OTP"),
                 }
             }
-            Err(e) => Err("Error sending OTP"),
+            Err(_) => Err("Error sending OTP"),
         }
     }
 
